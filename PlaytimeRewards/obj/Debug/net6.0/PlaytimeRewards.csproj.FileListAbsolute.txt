@@ -1,0 +1,13 @@
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\bin\Debug\net6.0\HttpServer.dll
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\bin\Debug\net6.0\PlaytimeRewards.deps.json
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\bin\Debug\net6.0\PlaytimeRewards.dll
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\bin\Debug\net6.0\PlaytimeRewards.pdb
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.csproj.AssemblyReference.cache
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.AssemblyInfoInputs.cache
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.AssemblyInfo.cs
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.csproj.CoreCompileInputs.cache
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.dll
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\refint\PlaytimeRewards.dll
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\PlaytimeRewards.pdb
+C:\Users\emr3c\VSProjects\PlaytimeRewards\PlaytimeRewards\obj\Debug\net6.0\ref\PlaytimeRewards.dll
