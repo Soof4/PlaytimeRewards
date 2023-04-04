@@ -1,4 +1,5 @@
-﻿using Terraria;
+﻿using System.ComponentModel;
+using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
 using TShockAPI.Hooks;
@@ -14,15 +15,25 @@ namespace PlaytimeRewards {
         public static string path = Path.Combine(TShock.SavePath + "/PlaytimeRewardsConfig.json");
         public static Config Config = new Config();
 
-        public static int ticks = 0;
+        public static DateTime lastTime = DateTime.UtcNow;
         public PlaytimeRewards(Main game) : base(game) {
         }
         public override void Initialize() {
-            ServerApi.Hooks.GameUpdate.Register(this, OnGameUpdate);
+            //ServerApi.Hooks.GameUpdate.Register(this, OnGameUpdate);
+            ServerApi.Hooks.WorldStartHardMode.Register(this, OnWorldStartHardMode);
+            ServerApi.Hooks.ServerLeave.Register(this, OnServerLeave);
+            ServerApi.Hooks.ServerJoin.Register(this, OnServerJoin);
             GeneralHooks.ReloadEvent += OnReload;
-            Commands.ChatCommands.Add(new Command("pr.getreward", GetRewardCmd, "getreward", "gr"));
-            Commands.ChatCommands.Add(new Command("pr.playtime", PlayTimeCmd, "playtime", "pt"));
 
+            Commands.ChatCommands.Add(new Command("pr.getreward", GetRewardCmd, "getreward", "gr") {
+                AllowServer = false,
+                HelpText = "Get a reward for your playtime."
+            });
+            Commands.ChatCommands.Add(new Command("pr.playtime", PlayTimeCmd, "playtime", "pt") {
+                AllowServer = false,
+                HelpText = "Shows how much playtime you have."
+            });
+            
             if (File.Exists(path)) {
                 Config = Config.Read();
             }
@@ -31,7 +42,40 @@ namespace PlaytimeRewards {
             }
         }
 
+        private void OnServerJoin(JoinEventArgs args) {
+            UpdateTime(Main.player[args.Who].name);
+        }
+        public void UpdateTime(string dontUpdatePlayerName="") {
+            for (int i = 0; i < Main.maxPlayers; i++) {
+                bool isFound = false;
+                foreach (var kvp in Config.PlayerList) {
+                    if (Main.player[i].name.Equals(kvp.Key)) {
+                        if(Main.player[i].name != dontUpdatePlayerName) {
+                            Config.PlayerList[kvp.Key] += (int)(DateTime.UtcNow - lastTime).TotalMinutes;
+                        }
+                        isFound = true;
+                    }
+                }
+                if (!isFound && Main.player[i].name != "") {
+                    Config.PlayerList.Add(Main.player[i].name, 0);
+                }
+            }
+            lastTime = DateTime.Now;
+            Config.Write();
+        }
+        private void OnServerLeave(LeaveEventArgs args) {
+            UpdateTime();
+        }
+        private void OnWorldStartHardMode(HandledEventArgs args) {
+            UpdateTime();
+            foreach (var kvp in Config.PlayerList) {
+                Config.PlayerList[kvp.Key] = (int)(kvp.Value*Config.SwitchToHMMultiplier);
+            }
+            Config.Write();
+            TSPlayer.All.SendInfoMessage($"All players' playtime has been reduced by %{100*(1-Config.SwitchToHMMultiplier)}.");
+        }
         private void PlayTimeCmd(CommandArgs args) {
+            UpdateTime();
             if (Config.PlayerList.ContainsKey(args.Player.Name)) {
                 args.Player.SendInfoMessage($"You have {Config.PlayerList[args.Player.Name]} mins unused playtime.");
             }
@@ -39,16 +83,11 @@ namespace PlaytimeRewards {
                 args.Player.SendErrorMessage("You don't have any playtime.");
             }
         }
-
         private void GetRewardCmd(CommandArgs args) {
-            if (args.Player.RealPlayer == false) {
-                return;
-            }
-
+            UpdateTime();
             TSPlayer Player = args.Player;
             Random rand = new Random();
             int itemIndex;
-
 
             if(!Config.PlayerList.ContainsKey(Player.Name)) {
                 Player.SendErrorMessage("You need to play more to get rewards.");
@@ -58,7 +97,6 @@ namespace PlaytimeRewards {
                 Player.SendErrorMessage($"You have only {Config.PlayerList[Player.Name]} mins playtime. You need to have at least {Config.TimeInMins} mins.");
                 return;
             }
-
 
             if(Main.hardMode) {
                 itemIndex = rand.Next(0, Config.RewardsHM.Length);
@@ -72,7 +110,6 @@ namespace PlaytimeRewards {
             Config.Write();
             Player.SendSuccessMessage("You have given your reward.");
         }
-
         private void OnReload(ReloadEventArgs e) {
             if (File.Exists(path)) {
                 Config = Config.Read();
@@ -82,6 +119,7 @@ namespace PlaytimeRewards {
             }
             e.Player.SendSuccessMessage("PlaytimeRewards plugin has been reloaded.");
         }
+        /*
         private void OnGameUpdate(EventArgs args) {
             if (++ticks % 3600 * Config.TimeInMins == 0) {
                 for (int i = 0; i < Main.maxPlayers; i++) {
@@ -99,6 +137,16 @@ namespace PlaytimeRewards {
                 ticks = 0;
                 Config.Write();
             }
+        }
+        */
+        protected override void Dispose(bool disposing) {
+            if(disposing) {
+                ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnWorldStartHardMode);
+                ServerApi.Hooks.ServerLeave.Deregister(this, OnServerLeave);
+                ServerApi.Hooks.ServerJoin.Deregister(this, OnServerJoin);
+                GeneralHooks.ReloadEvent -= OnReload;
+            }
+            base.Dispose(disposing);
         }
     }
 }
