@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "3KFvmUde4MlaRFcy2eP+zH4WxNIK/WssiOS2LydVxMLNvPRbUvXRry8S8TbuII8eY978plrZcY/bRRcJZzv/zg==",
+  "dgSpecHash": "jny23tMHZcBczzlnLJY0tq1lnutTQfi6ZZ58EyOe3QPuo2tbxa5J5sZzx9a2ImjK2syjf0JlD0CV6EXWEK0meg==",
   "success": true,
-  "projectFilePath": "C:\\Users\\emr3c\\VSProjects\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj",
+  "projectFilePath": "C:\\Users\\emr3c\\GitHub\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\emr3c\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\emr3c\\.nuget\\packages\\gettext.net\\1.7.14\\gettext.net.1.7.14.nupkg.sha512",

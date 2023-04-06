@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\emr3c\\VSProjects\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj": {}
+    "C:\\Users\\emr3c\\GitHub\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj": {}
   },
   "projects": {
-    "C:\\Users\\emr3c\\VSProjects\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj": {
+    "C:\\Users\\emr3c\\GitHub\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\emr3c\\VSProjects\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj",
+        "projectUniqueName": "C:\\Users\\emr3c\\GitHub\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj",
         "projectName": "PlaytimeRewards",
-        "projectPath": "C:\\Users\\emr3c\\VSProjects\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj",
+        "projectPath": "C:\\Users\\emr3c\\GitHub\\PlaytimeRewards\\PlaytimeRewards\\PlaytimeRewards.csproj",
         "packagesPath": "C:\\Users\\emr3c\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\emr3c\\VSProjects\\PlaytimeRewards\\PlaytimeRewards\\obj\\",
+        "outputPath": "C:\\Users\\emr3c\\GitHub\\PlaytimeRewards\\PlaytimeRewards\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

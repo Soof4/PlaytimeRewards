@@ -60,7 +60,7 @@ namespace PlaytimeRewards {
                     Config.PlayerList.Add(Main.player[i].name, 0);
                 }
             }
-            lastTime = DateTime.Now;
+            lastTime = DateTime.UtcNow;
             Config.Write();
         }
         private void OnServerLeave(LeaveEventArgs args) {
