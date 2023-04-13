@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using IL.Microsoft.Xna.Framework;
+using System.ComponentModel;
 using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
@@ -8,14 +9,14 @@ namespace PlaytimeRewards {
     [ApiVersion(2,1)]
     public class PlaytimeRewards : TerrariaPlugin {
         public override string Name => "PlaytimeRewards";
-        public override Version Version => new Version(1, 1, 0);
+        public override Version Version => new Version(1, 1, 2);
         public override string Author => "Soofa";
         public override string Description => "Gives players rewards based on how much time they've played on the server.";
 
         public static string path = Path.Combine(TShock.SavePath + "/PlaytimeRewardsConfig.json");
         public static Config Config = new Config();
-
         public static DateTime lastTime = DateTime.UtcNow;
+        public static bool wasHardmode = Main.hardMode;
         public PlaytimeRewards(Main game) : base(game) {
         }
         public override void Initialize() {
@@ -33,7 +34,7 @@ namespace PlaytimeRewards {
                 AllowServer = false,
                 HelpText = "Shows how much playtime you have."
             });
-            
+
             if (File.Exists(path)) {
                 Config = Config.Read();
             }
@@ -41,9 +42,11 @@ namespace PlaytimeRewards {
                 Config.Write();
             }
         }
-
         private void OnServerJoin(JoinEventArgs args) {
             UpdateTime(Main.player[args.Who].name);
+        }
+        private void OnServerLeave(LeaveEventArgs args) {
+            UpdateTime();
         }
         public void UpdateTime(string dontUpdatePlayerName="") {
             for (int i = 0; i < Main.maxPlayers; i++) {
@@ -60,19 +63,25 @@ namespace PlaytimeRewards {
                     Config.PlayerList.Add(Main.player[i].name, 0);
                 }
             }
-            lastTime = DateTime.UtcNow;
+
+            if ((DateTime.UtcNow - lastTime).TotalMinutes >= 1) {
+                lastTime = DateTime.UtcNow;
+            }
+
             Config.Write();
         }
-        private void OnServerLeave(LeaveEventArgs args) {
-            UpdateTime();
-        }
+
         private void OnWorldStartHardMode(HandledEventArgs args) {
             UpdateTime();
+            if (wasHardmode) {
+                return;
+            }
             foreach (var kvp in Config.PlayerList) {
                 Config.PlayerList[kvp.Key] = (int)(kvp.Value*Config.SwitchToHMMultiplier);
             }
             Config.Write();
             TSPlayer.All.SendInfoMessage($"All players' playtime has been reduced by %{100*(1-Config.SwitchToHMMultiplier)}.");
+            wasHardmode = true;
         }
         private void PlayTimeCmd(CommandArgs args) {
             UpdateTime();
@@ -119,26 +128,6 @@ namespace PlaytimeRewards {
             }
             e.Player.SendSuccessMessage("PlaytimeRewards plugin has been reloaded.");
         }
-        /*
-        private void OnGameUpdate(EventArgs args) {
-            if (++ticks % 3600 * Config.TimeInMins == 0) {
-                for (int i = 0; i < Main.maxPlayers; i++) {
-                    bool isFound = false;
-                    foreach (var kvp in Config.PlayerList) {
-                        if (Main.player[i].name.Equals(kvp.Key)) {
-                            Config.PlayerList[kvp.Key]++;
-                            isFound = true;
-                        }
-                    }
-                    if(!isFound && Main.player[i].name != "") {
-                        Config.PlayerList.Add(Main.player[i].name, 1);
-                    }
-                }
-                ticks = 0;
-                Config.Write();
-            }
-        }
-        */
         protected override void Dispose(bool disposing) {
             if(disposing) {
                 ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnWorldStartHardMode);
