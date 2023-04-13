@@ -20,7 +20,6 @@ namespace PlaytimeRewards {
         public PlaytimeRewards(Main game) : base(game) {
         }
         public override void Initialize() {
-            //ServerApi.Hooks.GameUpdate.Register(this, OnGameUpdate);
             ServerApi.Hooks.WorldStartHardMode.Register(this, OnWorldStartHardMode);
             ServerApi.Hooks.ServerLeave.Register(this, OnServerLeave);
             ServerApi.Hooks.ServerJoin.Register(this, OnServerJoin);
@@ -50,13 +49,17 @@ namespace PlaytimeRewards {
         }
         public void UpdateTime(string dontUpdatePlayerName="") {
             for (int i = 0; i < Main.maxPlayers; i++) {
+                if (Main.player[i] == null) {
+                    continue;
+                }
                 bool isFound = false;
                 foreach (var kvp in Config.PlayerList) {
                     if (Main.player[i].name.Equals(kvp.Key)) {
-                        if(Main.player[i].name != dontUpdatePlayerName) {
+                        isFound = true;
+                        if (Main.player[i].name != dontUpdatePlayerName) {
                             Config.PlayerList[kvp.Key] += (int)(DateTime.UtcNow - lastTime).TotalMinutes;
                         }
-                        isFound = true;
+                        break;
                     }
                 }
                 if (!isFound && Main.player[i].name != "") {
