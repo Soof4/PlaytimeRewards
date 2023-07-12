@@ -1,37 +1,49 @@
 ﻿using IL.Microsoft.Xna.Framework;
+using Microsoft.Data.Sqlite;
 using System.ComponentModel;
+using System.Data;
 using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
 using TShockAPI.Hooks;
 
+
 namespace PlaytimeRewards {
     [ApiVersion(2,1)]
     public class PlaytimeRewards : TerrariaPlugin {
         public override string Name => "PlaytimeRewards";
-        public override Version Version => new Version(1, 1, 2);
+        public override Version Version => new Version(1, 2, 2);
         public override string Author => "Soofa";
         public override string Description => "Gives players rewards based on how much time they've played on the server.";
 
         public static string path = Path.Combine(TShock.SavePath + "/PlaytimeRewardsConfig.json");
         public static Config Config = new Config();
         public static DateTime lastTime = DateTime.UtcNow;
-        public static bool wasHardmode = Main.hardMode;
+        private IDbConnection db;
+        public static Database.DatabaseManager dbManager;
+        public static Dictionary<string, int> onlinePlayers = new();
         public PlaytimeRewards(Main game) : base(game) {
         }
         public override void Initialize() {
-            ServerApi.Hooks.WorldStartHardMode.Register(this, OnWorldStartHardMode);
+            db = new SqliteConnection(("Data Source=" + Path.Combine(TShock.SavePath, "PlaytimeRewards.sqlite")));
+            dbManager = new Database.DatabaseManager(db);
+
+            ServerApi.Hooks.GameHardmodeTileUpdate.Register(this, OnGameHardmodeTileUpdate);
             ServerApi.Hooks.ServerLeave.Register(this, OnServerLeave);
             ServerApi.Hooks.ServerJoin.Register(this, OnServerJoin);
             GeneralHooks.ReloadEvent += OnReload;
 
             Commands.ChatCommands.Add(new Command("pr.getreward", GetRewardCmd, "getreward", "gr") {
                 AllowServer = false,
-                HelpText = "Get a reward for your playtime."
+                HelpText = "Get a reward for your playtime. Usage: \"/getreward <amount>\" or \"/getreward all\""
             });
             Commands.ChatCommands.Add(new Command("pr.playtime", PlayTimeCmd, "playtime", "pt") {
                 AllowServer = false,
                 HelpText = "Shows how much playtime you have."
+            });
+            Commands.ChatCommands.Add(new Command("pr.updateplaytime", UpdateDatabaseCmd, "updateplaytime") {
+                AllowServer = true,
+                HelpText = "Updates the playtime database to SQLite."
             });
 
             if (File.Exists(path)) {
@@ -41,86 +53,103 @@ namespace PlaytimeRewards {
                 Config.Write();
             }
         }
+
+        private void UpdateDatabaseCmd(CommandArgs args) {
+            foreach (var kvp in Config.PlayerList) {
+                if (!dbManager.SavePlayer(kvp.Key, kvp.Value)) {
+                    dbManager.InsertPlayer(kvp.Key);
+                    dbManager.SavePlayer(kvp.Key, kvp.Value);
+                }
+                Config.PlayerList.Remove(kvp.Key);
+            }
+            Config.Write();
+            args.Player.SendSuccessMessage("Updated the database successfullly.");
+        }
+
         private void OnServerJoin(JoinEventArgs args) {
-            UpdateTime(Main.player[args.Who].name);
+            UpdateTime();
+            try {
+                onlinePlayers.Add(Main.player[args.Who].name, dbManager.GetPlayerTime(Main.player[args.Who].name));
+            }
+            catch (NullReferenceException) {
+                dbManager.InsertPlayer(Main.player[args.Who].name);
+                onlinePlayers.Add(Main.player[args.Who].name, 0);
+            }
         }
         private void OnServerLeave(LeaveEventArgs args) {
             UpdateTime();
+            onlinePlayers.Remove(Main.player[args.Who].name);
         }
-        public void UpdateTime(string dontUpdatePlayerName="") {
-            for (int i = 0; i < Main.maxPlayers; i++) {
-                if (Main.player[i] == null) {
-                    continue;
-                }
-                bool isFound = false;
-                foreach (var kvp in Config.PlayerList) {
-                    if (Main.player[i].name.Equals(kvp.Key)) {
-                        isFound = true;
-                        if (Main.player[i].name != dontUpdatePlayerName) {
-                            Config.PlayerList[kvp.Key] += (int)(DateTime.UtcNow - lastTime).TotalMinutes;
-                        }
-                        break;
-                    }
-                }
-                if (!isFound && Main.player[i].name != "") {
-                    Config.PlayerList.Add(Main.player[i].name, 0);
-                }
-            }
-
-            if ((DateTime.UtcNow - lastTime).TotalMinutes >= 1) {
-                lastTime = DateTime.UtcNow;
-            }
-
-            Config.Write();
-        }
-
-        private void OnWorldStartHardMode(HandledEventArgs args) {
-            UpdateTime();
-            if (wasHardmode) {
+        public void UpdateTime() {
+            if ((DateTime.UtcNow - lastTime).TotalMinutes < 1) {
                 return;
             }
-            foreach (var kvp in Config.PlayerList) {
-                Config.PlayerList[kvp.Key] = (int)(kvp.Value*Config.SwitchToHMMultiplier);
+            foreach (var plr in onlinePlayers) {
+                onlinePlayers[plr.Key] += (int)(DateTime.UtcNow - lastTime).TotalMinutes;
+                dbManager.SavePlayer(plr.Key, onlinePlayers[plr.Key]);
             }
-            Config.Write();
-            TSPlayer.All.SendInfoMessage($"All players' playtime has been reduced by %{100*(1-Config.SwitchToHMMultiplier)}.");
-            wasHardmode = true;
+            lastTime = DateTime.UtcNow;
+        }
+
+        private void OnGameHardmodeTileUpdate(HandledEventArgs args) {
+            UpdateTime();
+            foreach (var kvp in onlinePlayers) {
+                onlinePlayers[kvp.Key] = (int)(kvp.Value*Config.SwitchToHMMultiplier);
+                dbManager.SavePlayer(kvp.Key, kvp.Value);
+            }
+            TSPlayer.All.SendInfoMessage($"Everyone's playtime has been reduced by {100*(1-Config.SwitchToHMMultiplier)}%.");
         }
         private void PlayTimeCmd(CommandArgs args) {
             UpdateTime();
-            if (Config.PlayerList.ContainsKey(args.Player.Name)) {
-                args.Player.SendInfoMessage($"You have {Config.PlayerList[args.Player.Name]} mins unused playtime.");
-            }
-            else {
-                args.Player.SendErrorMessage("You don't have any playtime.");
-            }
+            args.Player.SendInfoMessage($"You have {onlinePlayers[args.Player.Name]} mins unused playtime.");
         }
         private void GetRewardCmd(CommandArgs args) {
             UpdateTime();
             TSPlayer Player = args.Player;
+            int amount = 1;
+            
+            if (args.Parameters.Count > 0) {
+                if (args.Parameters[0].Equals("all")) {
+                    amount = onlinePlayers[Player.Name] / Config.TimeInMins;
+                }
+                else {
+                    int.TryParse(args.Parameters[0], out amount);
+                }
+                
+                if (amount < 1) {
+                    args.Player.SendErrorMessage("Amount can't be lower than one.");
+                    return;
+                }
+            }
             Random rand = new Random();
             int itemIndex;
 
-            if(!Config.PlayerList.ContainsKey(Player.Name)) {
-                Player.SendErrorMessage("You need to play more to get rewards.");
-                return;
-            }
-            else if (Config.PlayerList[Player.Name] < Config.TimeInMins) {
-                Player.SendErrorMessage($"You have only {Config.PlayerList[Player.Name]} mins playtime. You need to have at least {Config.TimeInMins} mins.");
+            if(onlinePlayers[Player.Name] < Config.TimeInMins*amount) {
+                Player.SendErrorMessage($"You have only {onlinePlayers[Player.Name]} mins playtime. You need to have at least {Config.TimeInMins*amount} mins.");
                 return;
             }
 
             if(Main.hardMode) {
-                itemIndex = rand.Next(0, Config.RewardsHM.Length);
-                Player.GiveItem(Config.RewardsHM[itemIndex], 1);
+                while (amount > 0) {
+                    itemIndex = rand.Next(0, Config.RewardsHM.Length);
+                    Player.GiveItem(Config.RewardsHM[itemIndex], 1);
+                    amount--;
+                    onlinePlayers[Player.Name] -= Config.TimeInMins;
+                    dbManager.SavePlayer(Player.Name, onlinePlayers[Player.Name]);
+                }
             }
             else {
-                itemIndex = rand.Next(0, Config.RewardsPreHM.Length);
-                Player.GiveItem(Config.RewardsPreHM[itemIndex], 1);
+                while (amount > 0) {
+                    itemIndex = rand.Next(0, Config.RewardsPreHM.Length);
+                    Player.GiveItem(Config.RewardsPreHM[itemIndex], 1);
+                    amount--;
+                    onlinePlayers[Player.Name] -= Config.TimeInMins;
+                    dbManager.SavePlayer(Player.Name, onlinePlayers[Player.Name]);
+                }
             }
-            Config.PlayerList[Player.Name] -= Config.TimeInMins;
-            Config.Write();
-            Player.SendSuccessMessage("You have given your reward.");
+            
+            dbManager.SavePlayer(Player.Name, onlinePlayers[Player.Name]);
+            Player.SendSuccessMessage("You were given your reward(s).");
         }
         private void OnReload(ReloadEventArgs e) {
             if (File.Exists(path)) {
@@ -133,7 +162,7 @@ namespace PlaytimeRewards {
         }
         protected override void Dispose(bool disposing) {
             if(disposing) {
-                ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnWorldStartHardMode);
+                ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnGameHardmodeTileUpdate);
                 ServerApi.Hooks.ServerLeave.Deregister(this, OnServerLeave);
                 ServerApi.Hooks.ServerJoin.Deregister(this, OnServerJoin);
                 GeneralHooks.ReloadEvent -= OnReload;
