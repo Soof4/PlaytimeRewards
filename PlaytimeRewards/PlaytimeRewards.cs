@@ -12,10 +12,11 @@ namespace PlaytimeRewards {
     [ApiVersion(2,1)]
     public class PlaytimeRewards : TerrariaPlugin {
         public override string Name => "PlaytimeRewards";
-        public override Version Version => new Version(1, 2, 2);
+        public override Version Version => new Version(1, 2, 3);
         public override string Author => "Soofa";
         public override string Description => "Gives players rewards based on how much time they've played on the server.";
 
+        private bool isHM;
         public static string path = Path.Combine(TShock.SavePath + "/PlaytimeRewardsConfig.json");
         public static Config Config = new Config();
         public static DateTime lastTime = DateTime.UtcNow;
@@ -28,10 +29,10 @@ namespace PlaytimeRewards {
             db = new SqliteConnection(("Data Source=" + Path.Combine(TShock.SavePath, "PlaytimeRewards.sqlite")));
             dbManager = new Database.DatabaseManager(db);
 
-            ServerApi.Hooks.GameHardmodeTileUpdate.Register(this, OnGameHardmodeTileUpdate);
-            ServerApi.Hooks.ServerLeave.Register(this, OnServerLeave);
+            ServerApi.Hooks.WorldStartHardMode.Register(this, OnWorldStartHardMode);
             ServerApi.Hooks.ServerJoin.Register(this, OnServerJoin);
             GeneralHooks.ReloadEvent += OnReload;
+            ServerApi.Hooks.GamePostInitialize.Register(this, OnGamePostInitialize);
 
             Commands.ChatCommands.Add(new Command("pr.getreward", GetRewardCmd, "getreward", "gr") {
                 AllowServer = false,
@@ -52,6 +53,10 @@ namespace PlaytimeRewards {
             else {
                 Config.Write();
             }
+        }
+
+        private void OnGamePostInitialize(EventArgs args) {
+            isHM = Main.hardMode;
         }
 
         private void UpdateDatabaseCmd(CommandArgs args) {
@@ -91,13 +96,17 @@ namespace PlaytimeRewards {
             lastTime = DateTime.UtcNow;
         }
 
-        private void OnGameHardmodeTileUpdate(HandledEventArgs args) {
+        private void OnWorldStartHardMode(HandledEventArgs args) {
+            if (isHM) {
+                return;
+            }
             UpdateTime();
             foreach (var kvp in onlinePlayers) {
                 onlinePlayers[kvp.Key] = (int)(kvp.Value*Config.SwitchToHMMultiplier);
                 dbManager.SavePlayer(kvp.Key, kvp.Value);
             }
             TSPlayer.All.SendInfoMessage($"Everyone's playtime has been reduced by {100*(1-Config.SwitchToHMMultiplier)}%.");
+            isHM = true;
         }
         private void PlayTimeCmd(CommandArgs args) {
             UpdateTime();
@@ -162,9 +171,10 @@ namespace PlaytimeRewards {
         }
         protected override void Dispose(bool disposing) {
             if(disposing) {
-                ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnGameHardmodeTileUpdate);
+                ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnWorldStartHardMode);
                 ServerApi.Hooks.ServerLeave.Deregister(this, OnServerLeave);
                 ServerApi.Hooks.ServerJoin.Deregister(this, OnServerJoin);
+                ServerApi.Hooks.GameWorldConnect.Deregister(this, OnGamePostInitialize);
                 GeneralHooks.ReloadEvent -= OnReload;
             }
             base.Dispose(disposing);
