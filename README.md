@@ -6,7 +6,7 @@ A TShock plugin that gives players rewards based on how much time they've played
 |-------------|-------------|
 |pr.getreward |getreward, gr|
 |pr.playtime  |playtime, pt |
-|pr.updatept  |updatept||
+|pr.updateplaytime |updateplaytime||
 
 ## Configuration
 When plugin runs for the first time it'll create a file named "PlaytimeRewardsConfig.json".
