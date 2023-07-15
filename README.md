@@ -8,6 +8,8 @@ A TShock plugin that gives players rewards based on how much time they've played
 |pr.playtime  |playtime, pt |
 |pr.updateplaytime |updateplaytime||
 
+Note: If you're updating from v1.1.x to latest version use the command ``/updateplaytime`` once, so the database is updated.
+
 ## Configuration
 When plugin runs for the first time it'll create a file named "PlaytimeRewardsConfig.json".
 |Keys                |Descriptions |
