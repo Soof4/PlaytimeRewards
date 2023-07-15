@@ -12,7 +12,7 @@ namespace PlaytimeRewards {
     [ApiVersion(2,1)]
     public class PlaytimeRewards : TerrariaPlugin {
         public override string Name => "PlaytimeRewards";
-        public override Version Version => new Version(1, 2, 3);
+        public override Version Version => new Version(1, 2, 4);
         public override string Author => "Soofa";
         public override string Description => "Gives players rewards based on how much time they've played on the server.";
 
@@ -31,6 +31,7 @@ namespace PlaytimeRewards {
 
             ServerApi.Hooks.WorldStartHardMode.Register(this, OnWorldStartHardMode);
             ServerApi.Hooks.ServerJoin.Register(this, OnServerJoin);
+            ServerApi.Hooks.ServerLeave.Register(this, OnServerLeave);
             GeneralHooks.ReloadEvent += OnReload;
             ServerApi.Hooks.GamePostInitialize.Register(this, OnGamePostInitialize);
 
@@ -55,20 +56,10 @@ namespace PlaytimeRewards {
             }
         }
 
+        
+        #region Hooks
         private void OnGamePostInitialize(EventArgs args) {
             isHM = Main.hardMode;
-        }
-
-        private void UpdateDatabaseCmd(CommandArgs args) {
-            foreach (var kvp in Config.PlayerList) {
-                if (!dbManager.SavePlayer(kvp.Key, kvp.Value)) {
-                    dbManager.InsertPlayer(kvp.Key);
-                    dbManager.SavePlayer(kvp.Key, kvp.Value);
-                }
-                Config.PlayerList.Remove(kvp.Key);
-            }
-            Config.Write();
-            args.Player.SendSuccessMessage("Updated the database successfullly.");
         }
 
         private void OnServerJoin(JoinEventArgs args) {
@@ -81,19 +72,10 @@ namespace PlaytimeRewards {
                 onlinePlayers.Add(Main.player[args.Who].name, 0);
             }
         }
+
         private void OnServerLeave(LeaveEventArgs args) {
             UpdateTime();
             onlinePlayers.Remove(Main.player[args.Who].name);
-        }
-        public void UpdateTime() {
-            if ((DateTime.UtcNow - lastTime).TotalMinutes < 1) {
-                return;
-            }
-            foreach (var plr in onlinePlayers) {
-                onlinePlayers[plr.Key] += (int)(DateTime.UtcNow - lastTime).TotalMinutes;
-                dbManager.SavePlayer(plr.Key, onlinePlayers[plr.Key]);
-            }
-            lastTime = DateTime.UtcNow;
         }
 
         private void OnWorldStartHardMode(HandledEventArgs args) {
@@ -108,6 +90,19 @@ namespace PlaytimeRewards {
             TSPlayer.All.SendInfoMessage($"Everyone's playtime has been reduced by {100*(1-Config.SwitchToHMMultiplier)}%.");
             isHM = true;
         }
+
+        private void OnReload(ReloadEventArgs e) {
+            if (File.Exists(path)) {
+                Config = Config.Read();
+            }
+            else {
+                Config.Write();
+            }
+            e.Player.SendSuccessMessage("PlaytimeRewards plugin has been reloaded.");
+        }
+        #endregion
+
+        #region Commands
         private void PlayTimeCmd(CommandArgs args) {
             UpdateTime();
             args.Player.SendInfoMessage($"You have {onlinePlayers[args.Player.Name]} mins unused playtime.");
@@ -116,7 +111,7 @@ namespace PlaytimeRewards {
             UpdateTime();
             TSPlayer Player = args.Player;
             int amount = 1;
-            
+
             if (args.Parameters.Count > 0) {
                 if (args.Parameters[0].Equals("all")) {
                     amount = onlinePlayers[Player.Name] / Config.TimeInMins;
@@ -124,7 +119,7 @@ namespace PlaytimeRewards {
                 else {
                     int.TryParse(args.Parameters[0], out amount);
                 }
-                
+
                 if (amount < 1) {
                     args.Player.SendErrorMessage("Amount can't be lower than one.");
                     return;
@@ -133,12 +128,12 @@ namespace PlaytimeRewards {
             Random rand = new Random();
             int itemIndex;
 
-            if(onlinePlayers[Player.Name] < Config.TimeInMins*amount) {
-                Player.SendErrorMessage($"You have only {onlinePlayers[Player.Name]} mins playtime. You need to have at least {Config.TimeInMins*amount} mins.");
+            if (onlinePlayers[Player.Name] < Config.TimeInMins * amount) {
+                Player.SendErrorMessage($"You have only {onlinePlayers[Player.Name]} mins playtime. You need to have at least {Config.TimeInMins * amount} mins.");
                 return;
             }
 
-            if(Main.hardMode) {
+            if (Main.hardMode) {
                 while (amount > 0) {
                     itemIndex = rand.Next(0, Config.RewardsHM.Length);
                     Player.GiveItem(Config.RewardsHM[itemIndex], 1);
@@ -156,19 +151,36 @@ namespace PlaytimeRewards {
                     dbManager.SavePlayer(Player.Name, onlinePlayers[Player.Name]);
                 }
             }
-            
+
             dbManager.SavePlayer(Player.Name, onlinePlayers[Player.Name]);
             Player.SendSuccessMessage("You were given your reward(s).");
         }
-        private void OnReload(ReloadEventArgs e) {
-            if (File.Exists(path)) {
-                Config = Config.Read();
+
+        private void UpdateDatabaseCmd(CommandArgs args) {
+            foreach (var kvp in Config.PlayerList) {
+                if (!dbManager.SavePlayer(kvp.Key, kvp.Value)) {
+                    dbManager.InsertPlayer(kvp.Key);
+                    dbManager.SavePlayer(kvp.Key, kvp.Value);
+                }
+                Config.PlayerList.Remove(kvp.Key);
             }
-            else {
-                Config.Write();
-            }
-            e.Player.SendSuccessMessage("PlaytimeRewards plugin has been reloaded.");
+            Config.Write();
+            args.Player.SendSuccessMessage("Updated the database successfullly.");
         }
+        #endregion
+
+
+        public void UpdateTime() {
+            if ((DateTime.UtcNow - lastTime).TotalMinutes < 1) {
+                return;
+            }
+            foreach (var plr in onlinePlayers) {
+                onlinePlayers[plr.Key] += (int)(DateTime.UtcNow - lastTime).TotalMinutes;
+                dbManager.SavePlayer(plr.Key, onlinePlayers[plr.Key]);
+            }
+            lastTime = DateTime.UtcNow;
+        }
+
         protected override void Dispose(bool disposing) {
             if(disposing) {
                 ServerApi.Hooks.WorldStartHardMode.Deregister(this, OnWorldStartHardMode);
