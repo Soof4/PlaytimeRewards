@@ -15,6 +15,6 @@ When plugin runs for the first time it'll create a file named "PlaytimeRewardsCo
 |Keys                |Descriptions |
 |--------------------|-------------|
 |TimeInMins          |This is how many minutes needed for a reward|
-|SwitchToHMMultiplier|When switched tohardmode every players' unused playtime will <br>be multiplied by this number. (If this equals to 0, playtimes will reset.)|
+|SwitchToHMMultiplier|When switched to hardmode every players' unused playtime will <br>be multiplied by this number. (If this equals to 0, playtimes will reset.)|
 |RewardsPreHM        |An array of item IDs for pre-hardmode rewards.|
 |RewardsHM        |An array of item IDs for hardmode rewards.|
