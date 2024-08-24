@@ -1,6 +1,8 @@
 # PlaytimeRewards
 A TShock plugin that gives players rewards based on how much time they've played on the server.
 
+If you want to read this in another language: [Spanish](https://github.com/Soof4/PlaytimeRewards/blob/main/README_SPANISH.md)
+
 ## Permissions and Commands
 |Permissions  | Commands    |
 |-------------|-------------|
