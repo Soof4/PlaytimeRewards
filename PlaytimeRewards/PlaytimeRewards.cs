@@ -49,6 +49,18 @@ public class PlaytimeRewards : TerrariaPlugin
             HelpText = "Shows how much playtime you have."
         });
 
+        Commands.ChatCommands.Add(new Command("pr.addreward", AddRewardCmd, "addreward", "ar")
+        {
+            AllowServer = true,
+            HelpText = "Add a reward to the list. Usage: \"/addreward <item ID or name> <amount> <is amount random> <is pre hardmode> <is hardmode>\""
+        });
+
+        Commands.ChatCommands.Add(new Command("pr.removereward", RemoveRewardCmd, "removereward", "rr")
+        {
+            AllowServer = true,
+            HelpText = "Remove a reward from the list. Usage: \"/removereward <item ID or name>\""
+        });
+
         if (File.Exists(path))
         {
             Config = Config.Read();
@@ -122,6 +134,7 @@ public class PlaytimeRewards : TerrariaPlugin
         UpdateTime();
         args.Player.SendInfoMessage($"You have {onlinePlayers[args.Player.Name]} mins unused playtime.");
     }
+
     private void GetRewardCmd(CommandArgs args)
     {
         UpdateTime();
@@ -152,6 +165,7 @@ public class PlaytimeRewards : TerrariaPlugin
                 return;
             }
         }
+
         Random rand = new Random();
 
         if (onlinePlayers[Player.Name] < Config.TimeInMins * num)
@@ -177,7 +191,7 @@ public class PlaytimeRewards : TerrariaPlugin
         }
         else
         {
-            var preHmRewards = Config.Rewards.Where(r => r.IsHardmode);
+            var preHmRewards = Config.Rewards.Where(r => r.IsPreHardmode);
 
             while (num > 0)
             {
@@ -192,6 +206,105 @@ public class PlaytimeRewards : TerrariaPlugin
         dbManager.SavePlayer(Player.Name, onlinePlayers[Player.Name]);
         Player.SendSuccessMessage("You were given your reward(s).");
     }
+
+    private void AddRewardCmd(CommandArgs args)
+    {
+        if (args.Parameters.Count < 3)
+        {
+            args.Player.SendErrorMessage("Invalid syntax! Proper syntax: /addreward <item ID or name> <amount> <is amount random> <is pre hardmode> <is hardmode>");
+            return;
+        }
+
+        int itemID;
+        List<Item> itemsFound = TShock.Utils.GetItemByIdOrName(args.Parameters[0]);
+
+        if (itemsFound.Count == 0)
+        {
+            args.Player.SendErrorMessage("Invalid item ID or name.");
+            return;
+        }
+        else if (itemsFound.Count > 1)
+        {
+            args.Player.SendErrorMessage("More than one item matched your query. Use the item ID instead.");
+            return;
+        }
+        else
+        {
+            itemID = itemsFound[0].type;
+        }
+
+
+        if (!int.TryParse(args.Parameters[1], out int amount))
+        {
+            args.Player.SendErrorMessage("Invalid amount.");
+            return;
+        }
+
+        if (!bool.TryParse(args.Parameters[2], out bool isAmountRandom))
+        {
+            args.Player.SendErrorMessage("Invalid isAmountRandom value.");
+            return;
+        }
+
+        if (!bool.TryParse(args.Parameters[3], out bool isPreHardmode))
+        {
+            args.Player.SendErrorMessage("Invalid isHardmode value.");
+            return;
+        }
+
+        if (!bool.TryParse(args.Parameters[4], out bool isHardmode))
+        {
+            args.Player.SendErrorMessage("Invalid isHardmode value.");
+            return;
+        }
+
+
+        Config.Rewards.Add(new Reward(itemID, amount, isAmountRandom, isPreHardmode, isHardmode));
+        Config.Write();
+        args.Player.SendSuccessMessage("Reward added successfully.");
+    }
+
+    private void RemoveRewardCmd(CommandArgs args)
+    {
+        if (args.Parameters.Count < 1)
+        {
+            args.Player.SendErrorMessage("Invalid syntax! Proper syntax: /removereward <item ID or name>");
+            return;
+        }
+
+        int itemID;
+        List<Item> itemsFound = TShock.Utils.GetItemByIdOrName(args.Parameters[0]);
+
+        if (itemsFound.Count == 0)
+        {
+            args.Player.SendErrorMessage("Invalid item ID or name.");
+            return;
+        }
+        else if (itemsFound.Count > 1)
+        {
+            args.Player.SendErrorMessage("More than one item matched your query. Use the item ID instead.");
+            return;
+        }
+        else
+        {
+            itemID = itemsFound[0].type;
+        }
+
+        int numRemove = Config.Rewards.RemoveAll(r => r.ItemID == itemID);
+        Config.Write();
+
+        if (numRemove == 0)
+        {
+            args.Player.SendErrorMessage("No rewards found with that item ID.");
+            return;
+        }
+        else
+        {
+            args.Player.SendSuccessMessage($"{numRemove} reward" + (numRemove > 1 ? "s" : "") + " removed successfully.");
+
+        }
+    }
+
     #endregion
 
 
